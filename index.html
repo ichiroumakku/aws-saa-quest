@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS SAAクエスト</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px 0;
+    box-sizing: border-box;
+  }
+  .card {
+    background: #1e293b;
+    padding: 28px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  h1 {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #fff;
+    box-sizing: border-box;
+    font-size: 16px;
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #22c55e;
+    color: #0f172a;
+    font-weight: bold;
+    font-size: 16px;
+    margin-top: 8px;
+  }
+  button.secondary {
+    background: transparent;
+    border: 1px solid #22c55e;
+    color: #22c55e;
+  }
+  #message {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 14px;
+    color: #fbbf24;
+  }
+  #quizArea {
+    display: none;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #94a3b8;
+  }
+  .top-bar button {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-top: 0;
+    background: transparent;
+    border: 1px solid #475569;
+    color: #94a3b8;
+  }
+  .tag {
+    display: inline-block;
+    background: #334155;
+    color: #93c5fd;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+  .question-body {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    white-space: pre-wrap;
+  }
+  .choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+  .choice.correct {
+    border-color: #22c55e;
+    background: #14532d;
+    font-weight: bold;
+  }
+  .choice.incorrect {
+    border-color: #ef4444;
+    background: #450a0a;
+  }
+  .result-box {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 10px;
+    background: #0f172a;
+  }
+  .result-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  .result-title.correct-text { color: #4ade80; }
+  .result-title.incorrect-text { color: #f87171; }
+  .exp-gain {
+    font-size: 13px;
+    color: #fbbf24;
+    margin-bottom: 4px;
+  }
+  .level-up {
+    font-size: 14px;
+    color: #facc15;
+    font-weight: bold;
+    margin-bottom: 12px;
+  }
+  .explanation {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cbd5e1;
+    white-space: pre-wrap;
+  }
+  .loading {
+    text-align: center;
+    color: #94a3b8;
+    padding: 40px 0;
+  }
+  .progress {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 8px;
+    text-align: right;
+  }
+  .deepdive {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #334155;
+  }
+  .deepdive-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #93c5fd;
+    margin-bottom: 12px;
+  }
+  .deepdive-history {
+    margin-bottom: 14px;
+  }
+  .deepdive-empty {
+    font-size: 12px;
+    color: #64748b;
+    padding: 4px 0;
+  }
+  .dd-msg {
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .dd-user {
+    background: #1e293b;
+    border: 1px solid #334155;
+  }
+  .dd-assistant {
+    background: #0f172a;
+    border: 1px solid #334155;
+  }
+  .dd-role {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 4px;
+  }
+  .dd-content {
+    white-space: pre-wrap;
+    color: #e2e8f0;
+  }
+  .deepdive-label {
+    display: block;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 6px;
+  }
+  .deepdive-textarea {
+    width: 100%;
+    min-height: 70px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #fff;
+    box-sizing: border-box;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .deepdive-btn {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    background: transparent;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: bold;
+    margin: 0 0 10px;
+  }
+  .deepdive-btn.save {
+    background: #22c55e;
+    color: #0f172a;
+    border-color: #22c55e;
+  }
+  .deepdive-links {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .deepdive-link {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #6366f1;
+    color: #a5b4fc;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: bold;
+  }
+  .deepdive-msg {
+    font-size: 12px;
+    text-align: center;
+    min-height: 16px;
+    margin-top: 4px;
+  }
+  .diff-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    margin-bottom: 12px;
+    margin-left: 6px;
+  }
+  .diff-1 { background: #14532d; color: #86efac; }
+  .diff-2 { background: #3f3f16; color: #fde047; }
+  .diff-3 { background: #4c0519; color: #fda4af; }
+  #heroPanel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  #heroSvg {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    background: #1e293b;
+    border-radius: 10px;
+  }
+  #heroInfo { flex: 1; min-width: 0; }
+  #heroTitle {
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #e2e8f0;
+  }
+  #heroTitle .lv { color: #4ade80; }
+  #heroBar {
+    height: 8px;
+    background: #1e293b;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  #heroBarFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    transition: width 0.4s ease;
+  }
+  #heroSub { font-size: 11px; color: #94a3b8; }
+  .continue-box {
+    text-align: center;
+    padding: 24px 8px;
+  }
+  .continue-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  .continue-sub {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>☁️ AWS SAAクエスト</h1>
+
+  <div id="authForm">
+    <input type="email" id="email" placeholder="メールアドレス">
+    <input type="password" id="password" placeholder="パスワード(6文字以上)">
+    <button onclick="signUp()">新規登録</button>
+    <button class="secondary" onclick="signIn()">ログイン</button>
+    <div id="message"></div>
+  </div>
+
+  <div id="quizArea">
+    <div class="top-bar">
+      <span id="userLabel"></span>
+      <button onclick="signOut()">ログアウト</button>
+    </div>
+    <div id="heroPanel">
+      <div id="heroSvg"></div>
+      <div id="heroInfo">
+        <div id="heroTitle">Lv.1</div>
+        <div id="heroBar"><div id="heroBarFill"></div></div>
+        <div id="heroSub"></div>
+      </div>
+    </div>
+    <div id="quizContent"><div class="loading">問題を読み込み中...</div></div>
+  </div>
+</div>
+
+<script>
+  // ↓ 新しい Supabase プロジェクト(aws-saa-quest)の値に置き換える
+  const SUPABASE_URL = "__SUPABASE_URL__";
+  const SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // AWS SAA-C03 出題分野(11分野)
+  const fieldNames = {
+    compute: "コンピューティング",
+    storage: "ストレージ",
+    database: "データベース",
+    network: "ネットワーキング",
+    security: "セキュリティ・IAM",
+    resilience: "信頼性・高可用性",
+    performance: "パフォーマンス最適化",
+    cost: "コスト最適化",
+    integration: "アプリ統合・疎結合",
+    monitoring: "監視・運用管理",
+    migration: "移行・データ転送"
+  };
+
+  // 難易度: 1=基礎 / 2=中間 / 3=本番同等
+  const diffLabels = { 1: "基礎", 2: "中間", 3: "本番同等" };
+  const expTable = {
+    1: { correct: 6,  incorrect: 1 },
+    2: { correct: 10, incorrect: 2 },
+    3: { correct: 16, incorrect: 3 }
+  };
+
+  // 総合レベル設定: Lv30 ≒ 本試験合格ライン(累計 約11,000 EXP ≒ 正解ベースで約1,100問)
+  const PASS_LEVEL = 30;
+  function xpToNext(level) { return 100 + 20 * (level - 1); }
+  function calcOverallLevel(totalExp) {
+    let level = 1, remain = Math.max(0, totalExp || 0);
+    while (remain >= xpToNext(level)) { remain -= xpToNext(level); level++; }
+    return { level: level, intoLevel: remain, need: xpToNext(level) };
+  }
+
+  const TIER_NAMES = ["ひよっこ", "みならい", "かけだし", "いちにんまえ", "じゅくれん", "たつじん", "アーキテクト"];
+  function heroTier(level) { return level >= 30 ? 6 : Math.floor(level / 5); }
+
+  let questions = [];
+  let currentIndex = 0;
+  let answered = false;
+  let currentUser = null;
+  let answeredCount = 0;          // このセッションで回答した問題数
+  const ASK_EVERY = 5;           // この問数ごとに継続確認する
+
+  function showMessage(text) {
+    document.getElementById('message').innerText = text;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  async function signUp() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if (error) {
+      showMessage("登録エラー: " + error.message);
+    } else {
+      showMessage("登録成功!そのままログインしてください。");
+    }
+  }
+
+  async function signIn() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      showMessage("ログインエラー: " + error.message);
+    } else {
+      checkUser();
+    }
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    checkUser();
+  }
+
+  async function checkUser() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+      currentUser = user;
+      document.getElementById('authForm').style.display = 'none';
+      document.getElementById('quizArea').style.display = 'block';
+      document.getElementById('userLabel').innerText = user.email;
+      renderHero(0);
+      await loadQuestions();
+      await loadHero();
+    } else {
+      currentUser = null;
+      document.getElementById('authForm').style.display = 'block';
+      document.getElementById('quizArea').style.display = 'none';
+      showMessage("");
+    }
+  }
+
+  async function loadQuestions() {
+    const container = document.getElementById('quizContent');
+    container.innerHTML = '<div class="loading">問題を読み込み中...</div>';
+
+    const { data, error } = await sb.from('questions').select('*');
+
+    if (error) {
+      container.innerHTML = '<div class="loading">問題の読み込みに失敗しました: ' + error.message + '</div>';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="loading">問題が登録されていません。</div>';
+      return;
+    }
+
+    questions = data.sort(() => Math.random() - 0.5);
+    currentIndex = 0;
+    answeredCount = 0;
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    answered = false;
+    const q = questions[currentIndex];
+    const container = document.getElementById('quizContent');
+
+    const fieldLabel = (q.field_tags && q.field_tags.length > 0)
+      ? (fieldNames[q.field_tags[0]] || q.field_tags[0])
+      : "分野未設定";
+
+    let choicesHtml = "";
+    for (const key in q.choices) {
+      choicesHtml += `<button class="choice" onclick="selectChoice('${key}')" id="choice-${key}">${key}. ${q.choices[key]}</button>`;
+    }
+
+    const diff = q.difficulty || 2;
+    const diffTag = `<span class="diff-tag diff-${diff}">${diffLabels[diff] || "中間"}</span>`;
+
+    container.innerHTML = `
+      <div class="progress">${currentIndex + 1} / ${questions.length} 問</div>
+      <div class="tag">${fieldLabel}</div>${diffTag}
+      <div class="question-body">${q.body}</div>
+      <div id="choicesArea">${choicesHtml}</div>
+      <div class="result-box" id="resultBox">
+        <div class="result-title" id="resultTitle"></div>
+        <div class="level-up" id="overallLevelUp" style="display:none;"></div>
+        <div class="level-up" id="levelUpText" style="display:none;"></div>
+        <div class="exp-gain" id="expGain"></div>
+        <div class="explanation" id="explanationText"></div>
+        <div id="deepDiveArea"></div>
+        <button onclick="nextQuestion()" style="margin-top:16px;">次の問題へ</button>
+      </div>
+    `;
+  }
+
+  // レベル計算:累計EXPから現在のレベルを算出
+  // レベルN→N+1に必要なEXP = N * 100 (累積)
+  function calcLevel(totalExp) {
+    let level = 1;
+    let remaining = totalExp;
+    while (remaining >= level * 100) {
+      remaining -= level * 100;
+      level++;
+    }
+    return level;
+  }
+
+  async function selectChoice(key) {
+    if (answered) return;
+    answered = true;
+    answeredCount++;
+
+    const q = questions[currentIndex];
+    const isCorrect = (key === q.official_answer);
+    const difficulty = q.difficulty || 2;
+    const expInfo = expTable[difficulty] || expTable[2];
+    const expGained = isCorrect ? expInfo.correct : expInfo.incorrect;
+
+    for (const k in q.choices) {
+      const btn = document.getElementById('choice-' + k);
+      btn.disabled = true;
+      if (k === q.official_answer) {
+        btn.classList.add('correct');
+      } else if (k === key) {
+        btn.classList.add('incorrect');
+      }
+    }
+
+    const resultBox = document.getElementById('resultBox');
+    const resultTitle = document.getElementById('resultTitle');
+    const expGain = document.getElementById('expGain');
+    const explanationText = document.getElementById('explanationText');
+    const levelUpText = document.getElementById('levelUpText');
+
+    if (isCorrect) {
+      resultTitle.innerText = "✅ 正解!";
+      resultTitle.className = "result-title correct-text";
+    } else {
+      resultTitle.innerText = "❌ 不正解";
+      resultTitle.className = "result-title incorrect-text";
+    }
+    expGain.innerText = "+" + expGained + " EXP（" + (diffLabels[difficulty] || "中間") + "）";
+    explanationText.innerText = q.explanation;
+    resultBox.style.display = "block";
+    renderDeepDive(q);
+
+    // ---- ここからSupabaseへの記録処理 ----
+    try {
+      const prevTotalExp = await fetchTotalExp();
+
+      // 1. answer_logs に記録
+      await sb.from('answer_logs').insert({
+        user_id: currentUser.id,
+        question_id: q.id,
+        user_answer: key,
+        is_correct: isCorrect,
+        exp_gained: expGained
+      });
+
+      // 2. 対象分野ごとに field_status を更新
+      const tags = (q.field_tags && q.field_tags.length > 0) ? q.field_tags : ['management'];
+
+      for (const fieldId of tags) {
+        const { data: existing } = await sb
+          .from('field_status')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('field_id', fieldId)
+          .maybeSingle();
+
+        const prevExp = existing ? existing.exp : 0;
+        const newExp = prevExp + expGained;
+        const prevLevel = existing ? existing.level : 1;
+        const newLevel = calcLevel(newExp);
+
+        await sb.from('field_status').upsert({
+          user_id: currentUser.id,
+          field_id: fieldId,
+          exp: newExp,
+          level: newLevel,
+          updated_at: new Date().toISOString()
+        });
+
+        if (newLevel > prevLevel) {
+          levelUpText.innerText = "🎉 " + (fieldNames[fieldId] || fieldId) + " が Lv." + newLevel + " にレベルアップ!";
+          levelUpText.style.display = "block";
+        }
+      }
+
+      // 3. 総合レベル(全分野の累計EXP)を更新
+      const newTotalExp = prevTotalExp + expGained * tags.length;
+      const prevOverall = calcOverallLevel(prevTotalExp).level;
+      const newOverall = calcOverallLevel(newTotalExp).level;
+      if (newOverall > prevOverall) {
+        const el = document.getElementById('overallLevelUp');
+        if (el) {
+          el.innerText = (newOverall >= PASS_LEVEL
+            ? "🏆 総合レベルが Lv." + newOverall + " に到達!合格ラインです!"
+            : "⭐ 総合レベルが Lv." + newOverall + " に上がった!");
+          el.style.display = "block";
+        }
+      }
+      renderHero(newTotalExp);
+    } catch (e) {
+      console.error("記録エラー:", e);
+    }
+    // ---- ここまで ----
+  }
+
+  // ---- 総合レベル & キャラクター ----
+  async function fetchTotalExp() {
+    const { data } = await sb.from('field_status').select('exp').eq('user_id', currentUser.id);
+    return (data || []).reduce((s, r) => s + (r.exp || 0), 0);
+  }
+
+  async function loadHero() {
+    renderHero(await fetchTotalExp());
+  }
+
+  function renderHero(totalExp) {
+    const info = calcOverallLevel(totalExp);
+    const tier = heroTier(info.level);
+    const svgEl = document.getElementById('heroSvg');
+    const titleEl = document.getElementById('heroTitle');
+    const fillEl = document.getElementById('heroBarFill');
+    const subEl = document.getElementById('heroSub');
+    if (!svgEl) return;
+    svgEl.innerHTML = heroSvg(info.level);
+    titleEl.innerHTML = '<span class="lv">Lv.' + info.level + '</span> ' + TIER_NAMES[tier];
+    fillEl.style.width = Math.min(100, Math.round(info.intoLevel / info.need * 100)) + '%';
+    const toPass = PASS_LEVEL - info.level;
+    subEl.innerText = (toPass > 0)
+      ? ("次のLvまで " + (info.need - info.intoLevel) + " EXP ／ 合格ラインまで あと Lv." + toPass)
+      : ("合格ライン到達! 累計 " + totalExp + " EXP");
+  }
+
+  // レベル帯で装備が変わるゆるキャラ(インラインSVG・盾のマスコット)
+  function heroSvg(level) {
+    const t = heroTier(level);
+    const p = [];
+    if (t >= 5) p.push('<path d="M30 40 Q19 70 26 86 L74 86 Q81 70 70 40 Z" fill="#7f1d1d"/>');
+    // 胴体
+    p.push('<rect x="30" y="34" width="40" height="44" rx="18" fill="#bfdbfe"/>');
+    p.push('<ellipse cx="40" cy="80" rx="6" ry="4" fill="#93a3b8"/><ellipse cx="60" cy="80" rx="6" ry="4" fill="#93a3b8"/>');
+    // おなかの盾エンブレム
+    p.push('<path d="M50 52 l8 3 v6 q0 6 -8 10 q-8 -4 -8 -10 v-6 Z" fill="#3b82f6" opacity="0.9"/>');
+    // 顔
+    p.push('<circle cx="43" cy="48" r="2.6" fill="#0f172a"/><circle cx="57" cy="48" r="2.6" fill="#0f172a"/>');
+    p.push('<circle cx="38" cy="53" r="3" fill="#fca5a5" opacity="0.65"/><circle cx="62" cy="53" r="3" fill="#fca5a5" opacity="0.65"/>');
+    p.push('<path d="M46 55 q4 4 8 0" stroke="#0f172a" stroke-width="1.6" fill="none" stroke-linecap="round"/>');
+    // 武器(右手)
+    if (t === 0) p.push('<rect x="72" y="40" width="3" height="26" rx="1.5" fill="#a16207"/>');
+    else if (t === 1) p.push('<rect x="72" y="38" width="3" height="26" rx="1.5" fill="#a16207"/><rect x="69" y="48" width="9" height="3" fill="#7c2d12"/>');
+    else if (t === 2 || t === 3) p.push('<rect x="72" y="30" width="3.6" height="30" rx="1.5" fill="#e2e8f0"/><rect x="68" y="42" width="12" height="3.6" rx="1" fill="#64748b"/>');
+    else p.push('<circle cx="74" cy="40" r="14" fill="#38bdf8" opacity="0.18"/><rect x="72" y="24" width="4" height="34" rx="2" fill="#f1f5f9"/><rect x="66" y="40" width="16" height="4" rx="1" fill="#eab308"/>');
+    // 盾(左手)
+    if (t === 1) p.push('<circle cx="26" cy="58" r="7" fill="#a16207" stroke="#7c2d12" stroke-width="1.5"/>');
+    else if (t === 2) p.push('<circle cx="25" cy="58" r="9" fill="#94a3b8" stroke="#475569" stroke-width="2"/>');
+    else if (t === 3 || t === 4) p.push('<path d="M25 47 l10 4 v9 q0 8 -10 12 q-10 -4 -10 -12 v-9 Z" fill="#3b82f6" stroke="#1d4ed8" stroke-width="1.5"/>');
+    else if (t >= 5) p.push('<path d="M25 45 l11 4 v10 q0 9 -11 13 q-11 -4 -11 -13 v-10 Z" fill="#2563eb" stroke="#eab308" stroke-width="2"/>');
+    // 頭装備
+    if (t === 1) p.push('<rect x="30" y="36" width="40" height="5" rx="2" fill="#ef4444"/><path d="M30 38 l-5 4 l5 1 Z" fill="#ef4444"/>');
+    else if (t === 2) p.push('<path d="M32 36 q18 -12 36 0 Z" fill="#7c2d12"/>');
+    else if (t === 3) p.push('<path d="M33 36 q17 -13 34 0 Z" fill="#94a3b8"/><rect x="48" y="32" width="4" height="12" fill="#94a3b8"/>');
+    else if (t === 4) p.push('<path d="M33 35 q17 -13 34 0 Z" fill="#cbd5e1"/><path d="M33 33 q-6 -6 -2 -12 q6 4 8 10 Z" fill="#e2e8f0"/><path d="M67 33 q6 -6 2 -12 q-6 4 -8 10 Z" fill="#e2e8f0"/>');
+    else if (t === 5) p.push('<path d="M34 34 l4 -10 l6 8 l6 -10 l6 10 l6 -8 l4 10 Z" fill="#facc15" stroke="#eab308" stroke-width="1"/>');
+    else if (t === 6) {
+      p.push('<path d="M34 34 l4 -11 l6 8 l6 -11 l6 11 l6 -8 l4 11 Z" fill="#facc15" stroke="#eab308" stroke-width="1"/>');
+      p.push('<circle cx="70" cy="24" r="6" fill="#22c55e"/><path d="M67 24 l2 2 l4 -4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>');
+      p.push('<text x="16" y="26" font-size="11">✨</text>');
+    }
+    return '<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">' + p.join('') + '</svg>';
+  }
+
+  // ---- 解説の深掘り学習 ----
+  function buildPrompt(q, doubt) {
+    let choicesText = "";
+    for (const key in q.choices) {
+      choicesText += key + ". " + q.choices[key] + "\n";
+    }
+    return (
+      "AWS Certified Solutions Architect - Associate (SAA-C03) の問題です。公式解説の内容で分からない点があります。\n\n" +
+      "【問題】\n" + q.body + "\n\n" +
+      "【選択肢】\n" + choicesText + "\n" +
+      "【正解】" + q.official_answer + "\n\n" +
+      "【公式解説】\n" + (q.explanation || "") + "\n\n" +
+      "【私の疑問】\n" + doubt + "\n\n" +
+      "初学者にも分かるように、私の疑問に答えてください。"
+    );
+  }
+
+  function showDeepDiveMsg(text, isError) {
+    const el = document.getElementById('deepDiveMsg');
+    if (!el) return;
+    el.innerText = text;
+    el.style.color = isError ? '#f87171' : '#4ade80';
+  }
+
+  function renderDeepDive(q) {
+    const area = document.getElementById('deepDiveArea');
+    if (!area) return;
+    area.innerHTML = `
+      <div class="deepdive">
+        <div class="deepdive-title">🔍 この解説を深掘りする</div>
+        <div id="deepDiveHistory" class="deepdive-history"><div class="deepdive-empty">読み込み中...</div></div>
+        <label class="deepdive-label" for="doubtInput">疑問を入力</label>
+        <textarea id="doubtInput" class="deepdive-textarea" placeholder="例: なぜアは不正解なのか?"></textarea>
+        <button class="deepdive-btn" onclick="copyPrompt()">📋 プロンプトをコピー</button>
+        <div class="deepdive-links">
+          <a class="deepdive-link" href="https://claude.ai/new" target="_blank" rel="noopener">Claude.aiを開く</a>
+          <a class="deepdive-link" href="https://chatgpt.com/" target="_blank" rel="noopener">ChatGPTを開く</a>
+        </div>
+        <label class="deepdive-label" for="answerInput">AIの回答を貼り付け</label>
+        <textarea id="answerInput" class="deepdive-textarea" placeholder="コピペ先で得た回答をここに貼り付け"></textarea>
+        <button class="deepdive-btn save" onclick="saveDeepDive()">💾 保存する</button>
+        <div id="deepDiveMsg" class="deepdive-msg"></div>
+      </div>
+    `;
+    loadDeepDiveHistory(q.id);
+  }
+
+  async function loadDeepDiveHistory(questionId) {
+    const box = document.getElementById('deepDiveHistory');
+    if (!box) return;
+    const { data, error } = await sb
+      .from('chat_messages')
+      .select('*')
+      .eq('question_id', questionId)
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      box.innerHTML = '<div class="deepdive-empty">履歴の読み込みに失敗しました</div>';
+      return;
+    }
+    if (!data || data.length === 0) {
+      box.innerHTML = '<div class="deepdive-empty">まだやり取りはありません</div>';
+      return;
+    }
+    let html = "";
+    for (const m of data) {
+      const isUser = (m.role === 'user');
+      html +=
+        '<div class="dd-msg ' + (isUser ? 'dd-user' : 'dd-assistant') + '">' +
+          '<div class="dd-role">' + (isUser ? '❓ 疑問' : '💡 回答') + '</div>' +
+          '<div class="dd-content">' + escapeHtml(m.content) + '</div>' +
+        '</div>';
+    }
+    box.innerHTML = html;
+  }
+
+  async function copyPrompt() {
+    const q = questions[currentIndex];
+    const doubt = (document.getElementById('doubtInput').value || '').trim();
+    if (!doubt) {
+      showDeepDiveMsg('先に疑問を入力してください', true);
+      return;
+    }
+    const text = buildPrompt(q, doubt);
+    try {
+      await navigator.clipboard.writeText(text);
+      showDeepDiveMsg('コピーしました。Claude.aiまたはChatGPTに貼り付けてください', false);
+      return;
+    } catch (e) {
+      // フォールバック(古いSafari / 非セキュアコンテキスト)
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      showDeepDiveMsg(ok ? 'コピーしました' : 'コピーに失敗しました。手動で選択してコピーしてください', !ok);
+    }
+  }
+
+  async function saveDeepDive() {
+    const q = questions[currentIndex];
+    const doubt = (document.getElementById('doubtInput').value || '').trim();
+    const answer = (document.getElementById('answerInput').value || '').trim();
+    if (!doubt || !answer) {
+      showDeepDiveMsg('疑問と回答の両方を入力してください', true);
+      return;
+    }
+    const now = Date.now();
+    const { error } = await sb.from('chat_messages').insert([
+      { user_id: currentUser.id, question_id: q.id, role: 'user', content: doubt, created_at: new Date(now).toISOString() },
+      { user_id: currentUser.id, question_id: q.id, role: 'assistant', content: answer, created_at: new Date(now + 1).toISOString() }
+    ]);
+    if (error) {
+      showDeepDiveMsg('保存に失敗しました: ' + error.message, true);
+      return;
+    }
+    document.getElementById('doubtInput').value = '';
+    document.getElementById('answerInput').value = '';
+    showDeepDiveMsg('保存しました', false);
+    loadDeepDiveHistory(q.id);
+  }
+  // ---- ここまで ----
+
+  function nextQuestion() {
+    // ASK_EVERY問ごとに継続確認を挟む
+    if (answeredCount > 0 && answeredCount % ASK_EVERY === 0) {
+      showContinuePrompt();
+      return;
+    }
+    advanceQuestion();
+  }
+
+  function advanceQuestion() {
+    currentIndex = (currentIndex + 1) % questions.length;
+    renderQuestion();
+  }
+
+  function showContinuePrompt() {
+    const container = document.getElementById('quizContent');
+    container.innerHTML = `
+      <div class="continue-box">
+        <div class="continue-title">${answeredCount}問 回答しました 🎉</div>
+        <div class="continue-sub">このまま続けますか?</div>
+        <button onclick="advanceQuestion()">続ける</button>
+        <button class="secondary" onclick="pauseSession()">いったん終了</button>
+      </div>
+    `;
+  }
+
+  function pauseSession() {
+    const container = document.getElementById('quizContent');
+    container.innerHTML = `
+      <div class="continue-box">
+        <div class="continue-title">おつかれさまでした</div>
+        <div class="continue-sub">今回は ${answeredCount}問 回答しました。<br>いつでも再開できます。</div>
+        <button onclick="advanceQuestion()">再開する</button>
+      </div>
+    `;
+  }
+
+  checkUser();
+</script>
+
+</body>
+</html>
