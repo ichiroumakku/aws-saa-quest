@@ -105,19 +105,23 @@ create policy profiles_insert_own on public.profiles
 create policy profiles_update_own on public.profiles
   for update using (auth.uid() = user_id);
 
--- field_status: 認証済みは全件閲覧(ランキング用)、本人のみ作成・更新
+-- field_status: 認証済みは全件閲覧(ランキング用)、本人のみ作成・更新・削除
 create policy field_status_select_all on public.field_status
   for select using (auth.role() = 'authenticated');
 create policy field_status_insert_own on public.field_status
   for insert with check (auth.uid() = user_id);
 create policy field_status_update_own on public.field_status
   for update using (auth.uid() = user_id);
+create policy field_status_delete_own on public.field_status
+  for delete using (auth.uid() = user_id);
 
 -- answer_logs: 本人のみ
 create policy answer_logs_select_own on public.answer_logs
   for select using (auth.uid() = user_id);
 create policy answer_logs_insert_own on public.answer_logs
   for insert with check (auth.uid() = user_id);
+create policy answer_logs_delete_own on public.answer_logs
+  for delete using (auth.uid() = user_id);
 
 -- chat_messages: 本人のみ
 create policy chat_messages_select_own on public.chat_messages

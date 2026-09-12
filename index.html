@@ -599,7 +599,21 @@
       <div class="dashboard-title">分野別成績</div>
       <div class="dashboard-list">${rowsHtml}</div>
       <button onclick="renderCategorySelect()">学習を始める</button>
+      <button class="secondary" style="border-color:#ef4444; color:#f87171; margin-top:16px;" onclick="clearScores()">成績をリセット</button>
     `;
+  }
+
+  async function clearScores() {
+    if (!confirm('本当に成績をリセットしますか?回答履歴・正答率・レベル・EXPがすべて削除され、元に戻せません。')) return;
+    try {
+      await sb.from('answer_logs').delete().eq('user_id', currentUser.id);
+      await sb.from('field_status').delete().eq('user_id', currentUser.id);
+      await loadHero();
+      await renderDashboard();
+    } catch (e) {
+      console.error('成績リセットエラー:', e);
+      alert('リセットに失敗しました: ' + e.message);
+    }
   }
 
   function renderCategorySelect() {
