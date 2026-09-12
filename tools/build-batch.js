@@ -7,6 +7,9 @@
 //      "q":"問題文",
 //      "c":["正答の選択肢","誤答1","誤答2","誤答3"],
 //      "e":"解説(選択肢記号ではなく内容で説明すること。並べ替え後も破綻しないように)" }, ...]
+//   "f" は categories マスタの9分類のいずれか:
+//   compute / storage / database / network / security /
+//   resilience / integration / analytics_migration / cost
 //
 // 出力: tools/out/<batch名>.sql   (questions への INSERT 文)
 //   - c[0] を正答として、ア/イ/ウ/エ の正答分布が均等になるよう毎回割り当てる
@@ -39,10 +42,18 @@ function pickLetter(seed) {
 const q = s => "'" + String(s).replace(/'/g, "''") + "'";
 const jb = obj => q(JSON.stringify(obj)) + '::jsonb';
 
+const VALID_CATEGORIES = new Set([
+  'compute', 'storage', 'database', 'network', 'security',
+  'resilience', 'integration', 'analytics_migration', 'cost'
+]);
+
 let no = startNo;
 const rows = items.map(item => {
   if (!Array.isArray(item.c) || item.c.length !== 4) {
     throw new Error('c は4要素の配列である必要があります: ' + JSON.stringify(item.q).slice(0, 40));
+  }
+  if (!VALID_CATEGORIES.has(item.f)) {
+    throw new Error('f が9分類のいずれでもありません: ' + item.f + ' (' + JSON.stringify(item.q).slice(0, 40) + ')');
   }
   const correctText = item.c[0];
   const others = item.c.slice(1);
@@ -50,14 +61,14 @@ const rows = items.map(item => {
   const nc = {};
   let oi = 0;
   for (const l of LETTERS) nc[l] = (l === target) ? correctText : others[oi++];
-  const row = `(${q(item.dom || 'D1')}, ${q('gen-' + batch)}, ${no}, ARRAY[${q(item.f)}]::text[], ${item.d || 3}, ${q(item.q)}, ${jb(nc)}, ${q(target)}, ${q(item.e)}, ${q('generated')})`;
+  const row = `(${q(item.dom || 'D1')}, ${q('gen-' + batch)}, ${no}, ${q(item.f)}, ${item.d || 3}, ${q(item.q)}, ${jb(nc)}, ${q(target)}, ${q(item.e)}, ${q('generated')})`;
   no++;
   return row;
 });
 
 const outDir = path.join(__dirname, 'out');
 fs.mkdirSync(outDir, { recursive: true });
-const head = 'insert into questions (exam_type, year, question_no, field_tags, difficulty, body, choices, official_answer, explanation, source) values\n';
+const head = 'insert into questions (exam_type, year, question_no, category_id, difficulty, body, choices, official_answer, explanation, source) values\n';
 const outPath = path.join(outDir, batch + '.sql');
 fs.writeFileSync(outPath, head + rows.join(',\n') + ';\n');
 

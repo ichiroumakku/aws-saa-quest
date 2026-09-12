@@ -329,6 +329,32 @@
     margin-bottom: 20px;
     line-height: 1.6;
   }
+  .category-select-title {
+    font-size: 14px;
+    color: #94a3b8;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .category-btn {
+    margin-top: 0;
+    font-size: 13px;
+    padding: 12px 8px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    font-weight: normal;
+  }
+  .category-current {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 4px;
+  }
 </style>
 </head>
 <body>
@@ -347,7 +373,10 @@
   <div id="quizArea">
     <div class="top-bar">
       <span id="userLabel"></span>
-      <button onclick="signOut()">ログアウト</button>
+      <div style="display:flex; gap:8px;">
+        <button onclick="renderCategorySelect()">分野を変更</button>
+        <button onclick="signOut()">ログアウト</button>
+      </div>
     </div>
     <div id="heroPanel">
       <div id="heroSvg"></div>
@@ -369,19 +398,17 @@
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // AWS SAA-C03 出題分野(11分野)
+  // AWS SAA-C03 出題分野(9分類。categories マスタと対応)
   const fieldNames = {
     compute: "コンピューティング",
     storage: "ストレージ",
     database: "データベース",
     network: "ネットワーキング",
-    security: "セキュリティ・IAM",
-    resilience: "信頼性・高可用性",
-    performance: "パフォーマンス最適化",
-    cost: "コスト最適化",
-    integration: "アプリ統合・疎結合",
-    monitoring: "監視・運用管理",
-    migration: "移行・データ転送"
+    security: "セキュリティ・アイデンティティ",
+    resilience: "可用性・耐障害性",
+    integration: "アプリケーション統合・疎結合",
+    analytics_migration: "データ分析・移行",
+    cost: "コスト管理"
   };
 
   // 難易度: 1=基礎 / 2=中間 / 3=本番同等
@@ -408,6 +435,7 @@
   let currentIndex = 0;
   let answered = false;
   let currentUser = null;
+  let selectedCategory = null;   // null = 指定なし(全分野)
   let answeredCount = 0;          // このセッションで回答した問題数
   const ASK_EVERY = 5;           // この問数ごとに継続確認する
 
@@ -459,7 +487,7 @@
       document.getElementById('quizArea').style.display = 'block';
       document.getElementById('userLabel').innerText = user.email;
       renderHero(0);
-      await loadQuestions();
+      renderCategorySelect();
       await loadHero();
     } else {
       currentUser = null;
@@ -469,11 +497,30 @@
     }
   }
 
-  async function loadQuestions() {
+  function renderCategorySelect() {
+    const container = document.getElementById('quizContent');
+    const buttons = Object.keys(fieldNames).map(id =>
+      `<button class="category-btn" onclick="selectCategoryAndLoad('${id}')">${fieldNames[id]}</button>`
+    ).join('');
+    container.innerHTML = `
+      <div class="category-select-title">出題する分野を選んでください</div>
+      <div class="category-grid">${buttons}</div>
+      <button class="secondary" onclick="selectCategoryAndLoad(null)">指定なし(全分野からランダム)</button>
+    `;
+  }
+
+  async function selectCategoryAndLoad(categoryId) {
+    selectedCategory = categoryId;
+    await loadQuestions(categoryId);
+  }
+
+  async function loadQuestions(categoryId) {
     const container = document.getElementById('quizContent');
     container.innerHTML = '<div class="loading">問題を読み込み中...</div>';
 
-    const { data, error } = await sb.from('questions').select('*');
+    let query = sb.from('questions').select('*');
+    if (categoryId) query = query.eq('category_id', categoryId);
+    const { data, error } = await query;
 
     if (error) {
       container.innerHTML = '<div class="loading">問題の読み込みに失敗しました: ' + error.message + '</div>';
@@ -481,7 +528,7 @@
     }
 
     if (!data || data.length === 0) {
-      container.innerHTML = '<div class="loading">問題が登録されていません。</div>';
+      container.innerHTML = '<div class="loading">この分野の問題が登録されていません。<br><button onclick="renderCategorySelect()">分野を選び直す</button></div>';
       return;
     }
 
@@ -496,9 +543,7 @@
     const q = questions[currentIndex];
     const container = document.getElementById('quizContent');
 
-    const fieldLabel = (q.field_tags && q.field_tags.length > 0)
-      ? (fieldNames[q.field_tags[0]] || q.field_tags[0])
-      : "分野未設定";
+    const fieldLabel = fieldNames[q.category_id] || q.category_id || "分野未設定";
 
     let choicesHtml = "";
     for (const key in q.choices) {
@@ -507,8 +552,10 @@
 
     const diff = q.difficulty || 2;
     const diffTag = `<span class="diff-tag diff-${diff}">${diffLabels[diff] || "中間"}</span>`;
+    const categoryCurrent = selectedCategory ? (fieldNames[selectedCategory] || selectedCategory) : "指定なし(全分野)";
 
     container.innerHTML = `
+      <div class="category-current">出題分野: ${categoryCurrent}</div>
       <div class="progress">${currentIndex + 1} / ${questions.length} 問</div>
       <div class="tag">${fieldLabel}</div>${diffTag}
       <div class="question-body">${q.body}</div>
@@ -589,38 +636,35 @@
         exp_gained: expGained
       });
 
-      // 2. 対象分野ごとに field_status を更新
-      const tags = (q.field_tags && q.field_tags.length > 0) ? q.field_tags : ['management'];
+      // 2. 分野(category_id)ごとに field_status を更新
+      const fieldId = q.category_id;
+      const { data: existing } = await sb
+        .from('field_status')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('field_id', fieldId)
+        .maybeSingle();
 
-      for (const fieldId of tags) {
-        const { data: existing } = await sb
-          .from('field_status')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .eq('field_id', fieldId)
-          .maybeSingle();
+      const prevExp = existing ? existing.exp : 0;
+      const newExp = prevExp + expGained;
+      const prevLevel = existing ? existing.level : 1;
+      const newLevel = calcLevel(newExp);
 
-        const prevExp = existing ? existing.exp : 0;
-        const newExp = prevExp + expGained;
-        const prevLevel = existing ? existing.level : 1;
-        const newLevel = calcLevel(newExp);
+      await sb.from('field_status').upsert({
+        user_id: currentUser.id,
+        field_id: fieldId,
+        exp: newExp,
+        level: newLevel,
+        updated_at: new Date().toISOString()
+      });
 
-        await sb.from('field_status').upsert({
-          user_id: currentUser.id,
-          field_id: fieldId,
-          exp: newExp,
-          level: newLevel,
-          updated_at: new Date().toISOString()
-        });
-
-        if (newLevel > prevLevel) {
-          levelUpText.innerText = "🎉 " + (fieldNames[fieldId] || fieldId) + " が Lv." + newLevel + " にレベルアップ!";
-          levelUpText.style.display = "block";
-        }
+      if (newLevel > prevLevel) {
+        levelUpText.innerText = "🎉 " + (fieldNames[fieldId] || fieldId) + " が Lv." + newLevel + " にレベルアップ!";
+        levelUpText.style.display = "block";
       }
 
       // 3. 総合レベル(全分野の累計EXP)を更新
-      const newTotalExp = prevTotalExp + expGained * tags.length;
+      const newTotalExp = prevTotalExp + expGained;
       const prevOverall = calcOverallLevel(prevTotalExp).level;
       const newOverall = calcOverallLevel(newTotalExp).level;
       if (newOverall > prevOverall) {

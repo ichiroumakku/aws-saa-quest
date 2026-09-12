@@ -2,13 +2,36 @@
 -- 新しい Supabase プロジェクト(aws-saa-quest / Tokyo)の SQL Editor で一度だけ実行する。
 -- 旧 sc-study-app と同一構造(トリガー・関数なし。RLS ポリシーもダッシュボード相当)。
 
+-- ========== categories (出題分野マスタ: 9分類) ==========
+create table if not exists public.categories (
+  id         text primary key,   -- compute / storage / database / network / security /
+                                  -- resilience / integration / analytics_migration / cost
+  name_ja    text not null,
+  name_en    text not null,
+  sort_order integer not null
+);
+
+insert into public.categories (id, name_ja, name_en, sort_order) values
+  ('compute',             'コンピューティング',             'Compute',                 1),
+  ('storage',             'ストレージ',                     'Storage',                 2),
+  ('database',            'データベース',                   'Database',                3),
+  ('network',             'ネットワーキング',               'Networking',              4),
+  ('security',            'セキュリティ・アイデンティティ', 'Security & Identity',     5),
+  ('resilience',          '可用性・耐障害性',               'Resiliency & DR',         6),
+  ('integration',         'アプリケーション統合・疎結合',   'Application Integration', 7),
+  ('analytics_migration', 'データ分析・移行',               'Analytics & Migration',   8),
+  ('cost',                'コスト管理',                     'Cost Management',         9)
+on conflict (id) do update set
+  name_ja = excluded.name_ja, name_en = excluded.name_en, sort_order = excluded.sort_order;
+
 -- ========== questions ==========
 create table if not exists public.questions (
   id              uuid primary key default gen_random_uuid(),
   exam_type       text,                       -- SAA-C03 のドメイン: D1/D2/D3/D4
   year            text,                       -- 生成バッチ識別子 (例: gen-2026-09)
   question_no     integer,
-  field_tags      text[],                     -- fieldNames のキー (compute, storage, ...)
+  field_tags      text[],                     -- 旧11分類。category_id 導入後は参考情報として残置
+  category_id     text not null references public.categories(id), -- 新9分類(単一)
   difficulty      integer default 3,          -- 1=基礎 / 2=中間 / 3=本番同等
   body            text,
   choices         jsonb,                      -- {"ア":"...","イ":"...","ウ":"...","エ":"..."}
@@ -59,11 +82,16 @@ create table if not exists public.chat_messages (
 );
 
 -- ========== RLS ==========
+alter table public.categories    enable row level security;
 alter table public.questions     enable row level security;
 alter table public.profiles      enable row level security;
 alter table public.field_status  enable row level security;
 alter table public.answer_logs   enable row level security;
 alter table public.chat_messages enable row level security;
+
+-- categories: 認証済みは全件閲覧。書き込みはサービスロール(SQL Editor)のみ。
+create policy categories_select_all on public.categories
+  for select using (auth.role() = 'authenticated');
 
 -- questions: 認証済みは全件閲覧。書き込みはサービスロール(SQL Editor)のみ。
 create policy questions_select_all on public.questions
