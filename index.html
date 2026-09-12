@@ -355,6 +355,53 @@
     color: #64748b;
     margin-bottom: 4px;
   }
+  .dashboard-summary {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .dashboard-summary-title {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+  }
+  .dashboard-summary-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    font-size: 13px;
+    color: #e2e8f0;
+  }
+  .dashboard-num {
+    display: block;
+    font-size: 22px;
+    font-weight: bold;
+    color: #4ade80;
+  }
+  .dashboard-title {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+  }
+  .dashboard-list {
+    margin-bottom: 16px;
+  }
+  .dashboard-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .dashboard-row-name { color: #e2e8f0; }
+  .dashboard-row-stats { color: #94a3b8; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -487,7 +534,7 @@
       document.getElementById('quizArea').style.display = 'block';
       document.getElementById('userLabel').innerText = user.email;
       renderHero(0);
-      renderCategorySelect();
+      await renderDashboard();
       await loadHero();
     } else {
       currentUser = null;
@@ -495,6 +542,64 @@
       document.getElementById('quizArea').style.display = 'none';
       showMessage("");
     }
+  }
+
+  async function renderDashboard() {
+    const container = document.getElementById('quizContent');
+    container.innerHTML = '<div class="loading">成績を読み込み中...</div>';
+
+    const { data, error } = await sb
+      .from('answer_logs')
+      .select('is_correct, questions(category_id)')
+      .eq('user_id', currentUser.id);
+
+    if (error) {
+      container.innerHTML = '<div class="loading">成績の読み込みに失敗しました: ' + error.message + '</div>';
+      return;
+    }
+
+    const logs = data || [];
+    const perCategory = {};
+    Object.keys(fieldNames).forEach(id => { perCategory[id] = { total: 0, correct: 0 }; });
+
+    let totalCount = 0, totalCorrect = 0;
+    for (const log of logs) {
+      const rel = Array.isArray(log.questions) ? log.questions[0] : log.questions;
+      const catId = rel && rel.category_id;
+      totalCount++;
+      if (log.is_correct) totalCorrect++;
+      if (catId && perCategory[catId]) {
+        perCategory[catId].total++;
+        if (log.is_correct) perCategory[catId].correct++;
+      }
+    }
+
+    const overallAccuracy = totalCount > 0 ? Math.round(totalCorrect / totalCount * 1000) / 10 : 0;
+
+    const rowsHtml = Object.keys(fieldNames).map(id => {
+      const stat = perCategory[id];
+      const label = stat.total > 0
+        ? Math.round(stat.correct / stat.total * 1000) / 10 + '% (' + stat.correct + '/' + stat.total + '問)'
+        : '未回答';
+      return `
+        <div class="dashboard-row">
+          <div class="dashboard-row-name">${fieldNames[id]}</div>
+          <div class="dashboard-row-stats">${label}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="dashboard-summary">
+        <div class="dashboard-summary-title">総合成績</div>
+        <div class="dashboard-summary-stats">
+          <div><span class="dashboard-num">${totalCount}</span>問 回答</div>
+          <div><span class="dashboard-num">${overallAccuracy}</span>% 正答率</div>
+        </div>
+      </div>
+      <div class="dashboard-title">分野別成績</div>
+      <div class="dashboard-list">${rowsHtml}</div>
+      <button onclick="renderCategorySelect()">学習を始める</button>
+    `;
   }
 
   function renderCategorySelect() {
